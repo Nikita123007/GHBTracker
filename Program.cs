@@ -16,40 +16,35 @@ class Program
     static async Task Main()
     {
         Console.WriteLine("Service started!");
-        while (true)
+        try
         {
-            try
-            {
-                using var client = new HttpClient();
-                var currentState = await (await client.GetAsync(track_url)).Content.ReadAsStringAsync();
-                HtmlDocument doc = new HtmlDocument();
-                doc.LoadHtml(currentState);
-                var currentLinks = doc.DocumentNode.SelectSingleNode("//div[@class='content']").SelectNodes(".//a").Select(l => HttpUtility.HtmlDecode(l.InnerText.Trim())).ToList();
+            using var client = new HttpClient();
+            var currentState = await (await client.GetAsync(track_url)).Content.ReadAsStringAsync();
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(currentState);
+            var currentLinks = doc.DocumentNode.SelectSingleNode("//div[@class='content']").SelectNodes(".//a").Select(l => HttpUtility.HtmlDecode(l.InnerText.Trim())).ToList();
 
-                var prevLinks = ReadLinks();
-                var newLinks = prevLinks != null ? currentLinks.Except(prevLinks).ToList() : [];
-                if (newLinks.Any())
-                {
-                    foreach (var receiverId in receiverIds)
-                    {
-                        await SendToViber($"Go to {track_url} now! New links:\r\n\r\n {string.Join("\r\n\r\n", newLinks)}", receiverId);
-                    }
-                }
-
-                WriteLinks(currentLinks.ToArray());
-                _lastSuccess = DateTime.Now;
-            }
-            catch (Exception ex)
+            var prevLinks = ReadLinks();
+            var newLinks = prevLinks != null ? currentLinks.Except(prevLinks).ToList() : [];
+            if (newLinks.Any())
             {
-                AppendError(ex);
-                if ((DateTime.Now - _lastSuccess).TotalHours > 3)
+                foreach (var receiverId in receiverIds)
                 {
-                    await SendToViber("Service stopped!", adminReceiverId);
-                    Console.WriteLine("Service stopped!");
-                    break;
+                    await SendToViber($"Go to {track_url} now! New links:\r\n\r\n {string.Join("\r\n\r\n", newLinks)}", receiverId);
                 }
             }
-            await Task.Delay(TimeSpan.FromMinutes(10));
+
+            WriteLinks(currentLinks.ToArray());
+            _lastSuccess = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            AppendError(ex);
+            if ((DateTime.Now - _lastSuccess).TotalHours > 3)
+            {
+                await SendToViber("Service stopped!", adminReceiverId);
+                Console.WriteLine("Service stopped!");
+            }
         }
     }
 
