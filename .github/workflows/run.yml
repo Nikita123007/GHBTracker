@@ -1,26 +1,43 @@
-name: Run .NET 8 console every 10 minutes
+name: .NET 8 Site Checker
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # каждые 10 минут
-  workflow_dispatch:        # можно запускать вручную
+    - cron: "*/10 * * * *"  # каждые 10 минут UTC
+  workflow_dispatch:        # возможность запуска вручную
 
 jobs:
-  run-app:
+  check-site:
     runs-on: ubuntu-latest
     steps:
+      # Получаем код
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: true  # чтобы push работал
 
+      # Настраиваем .NET 8
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
+      # Восстанавливаем зависимости
       - name: Restore
         run: dotnet restore
 
+      # Собираем
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      # Запускаем приложение
       - name: Run app
         run: dotnet run --configuration Release
+
+      # Коммитим links.txt and errors.txt обратно в репо
+      - name: Commit updated links and errors
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Action"
+          git add links.txt
+          git add errors.txt
+          git diff --cached --quiet || git commit -m "Update links.txt and errors.txt"
+          git push
