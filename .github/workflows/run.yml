@@ -1,5 +1,8 @@
 name: .NET 8 Site Checker
 
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: "*/10 * * * *"  # каждые 10 минут UTC
@@ -37,7 +40,6 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Action"
-          git add links.txt
-          git add errors.txt
+          git add links.txt errors.txt
           git diff --cached --quiet || git commit -m "Update links.txt and errors.txt"
           git push
