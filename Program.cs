@@ -5,6 +5,12 @@ using System.Web;
 
 class Program
 {
+    class Link
+    {
+        public string Text { get; set; }
+        public string Url { get; set; }
+    }
+
     static string authToken = "4a638636a9a7d2b5-c55c32572b366f6a-f6d14fc688f52727";
     static string adminReceiverId = "By6xPkauA5vN9EuQbo5g5A==";
     static List<string> receiverIds = [adminReceiverId, "SbPiUX9+UlMHhKy+d/qz5Q=="];
@@ -16,25 +22,31 @@ class Program
     static async Task Main()
     {
         Console.WriteLine("Service started!");
+        //while (true)
+        //{
         try
         {
             using var client = new HttpClient();
             var currentState = await (await client.GetAsync(track_url)).Content.ReadAsStringAsync();
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(currentState);
-            var currentLinks = doc.DocumentNode.SelectSingleNode("//div[@class='content']").SelectNodes(".//a").Select(l => HttpUtility.HtmlDecode(l.InnerText.Trim())).ToList();
+            var currentLinks = doc.DocumentNode.SelectSingleNode("//div[@class='content']").SelectNodes(".//a").Select(l => new Link()
+            {
+                Text = HttpUtility.HtmlDecode(l.InnerText.Trim()),
+                Url = l.GetAttributeValue("href", "")
+            }).ToList();
 
             var prevLinks = ReadLinks();
-            var newLinks = prevLinks != null ? currentLinks.Except(prevLinks).ToList() : [];
+            var newLinks = prevLinks != null ? currentLinks.ExceptBy(prevLinks, l => l.Text).ToList() : [];
             if (newLinks.Any())
             {
                 foreach (var receiverId in receiverIds)
                 {
-                    await SendToViber($"Go to {track_url} now! New links:\r\n\r\n {string.Join("\r\n\r\n", newLinks)}", receiverId);
+                    await SendToViber($"Go to {track_url} now! New links:\r\n\r\n {string.Join("\r\n\r\n", newLinks.Select(l => l.Text + "\r\n" + l.Url))}", receiverId);
                 }
             }
 
-            WriteLinks(currentLinks.ToArray());
+            WriteLinks(currentLinks.Select(l => l.Text).ToArray());
             _lastSuccess = DateTime.Now;
         }
         catch (Exception ex)
@@ -46,6 +58,8 @@ class Program
                 Console.WriteLine("Service stopped!");
             }
         }
+        //    await Task.Delay(TimeSpan.FromMinutes(10));
+        //}
     }
 
     static async Task SendToViber(string text, string receiver)
